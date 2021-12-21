@@ -21,9 +21,9 @@ var (
 
 func dial() (*routeros.Client, error) {
 	if *useTLS {
-		return routeros.DialTLS(*address, *username, *password, nil)
+		return routeros.DialTLSWithTimeout(*address, *username, *password, nil, *timeout)
 	}
-	return routeros.Dial(*address, *username, *password)
+	return routeros.DialWithTimeout(*address, *username, *password, *timeout)
 }
 
 func main() {
