@@ -1,10 +1,11 @@
 package proto
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
+	"net"
+	"time"
 )
 
 // Reader reads sentences from a RouterOS device.
@@ -13,12 +14,16 @@ type Reader interface {
 }
 
 type reader struct {
-	*bufio.Reader
+	net.Conn
+	timeout time.Duration
 }
 
 // NewReader returns a new Reader to read from r.
-func NewReader(r io.Reader) Reader {
-	return &reader{bufio.NewReader(r)}
+func NewReader(r net.Conn, timeout time.Duration) Reader {
+	return &reader{
+		Conn: r,
+		timeout: timeout,
+	}
 }
 
 // ReadSentence reads a sentence.
@@ -59,6 +64,7 @@ func (r *reader) ReadSentence() (*Sentence, error) {
 
 func (r *reader) readNumber(size int) (int64, error) {
 	b := make([]byte, size)
+	_ = r.SetReadDeadline(time.Now().Add(r.timeout))
 	_, err := io.ReadFull(r, b)
 	if err != nil {
 		return -1, err
@@ -102,6 +108,7 @@ func (r *reader) readWord() ([]byte, error) {
 		return nil, err
 	}
 	b := make([]byte, l)
+	_ = r.SetReadDeadline(time.Now().Add(r.timeout))
 	_, err = io.ReadFull(r, b)
 	if err != nil {
 		return nil, err

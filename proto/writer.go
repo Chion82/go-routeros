@@ -1,9 +1,9 @@
 package proto
 
 import (
-	"bufio"
-	"io"
+	"net"
 	"sync"
+	"time"
 )
 
 // Writer writes words to a RouterOS device.
@@ -14,14 +14,18 @@ type Writer interface {
 }
 
 type writer struct {
-	*bufio.Writer
+	net.Conn
 	err error
 	sync.Mutex
+	timeout time.Duration
 }
 
 // NewWriter returns a new Writer to write to w.
-func NewWriter(w io.Writer) Writer {
-	return &writer{Writer: bufio.NewWriter(w)}
+func NewWriter(w net.Conn, timeout time.Duration) Writer {
+	return &writer{
+		Conn: w,
+		timeout: timeout,
+	}
 }
 
 // BeginSentence prepares w for writing a sentence.
@@ -34,7 +38,6 @@ func (w *writer) BeginSentence() {
 func (w *writer) EndSentence() error {
 	defer w.Unlock()
 	w.WriteWord("")
-	w.flush()
 	return w.err
 }
 
@@ -45,20 +48,11 @@ func (w *writer) WriteWord(word string) {
 	w.write(b)
 }
 
-func (w *writer) flush() {
-	if w.err != nil {
-		return
-	}
-	err := w.Flush()
-	if err != nil {
-		w.err = err
-	}
-}
-
 func (w *writer) write(b []byte) {
 	if w.err != nil {
 		return
 	}
+	_ = w.SetWriteDeadline(time.Now().Add(w.timeout))
 	_, err := w.Write(b)
 	if err != nil {
 		w.err = err

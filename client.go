@@ -12,8 +12,13 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/Chion82/go-routeros/proto"
+)
+
+const (
+	DefaultTimeout = 10 * time.Second
 )
 
 // Client is a RouterOS API client.
@@ -23,6 +28,7 @@ type Client struct {
 	rwc     io.ReadWriteCloser
 	r       proto.Reader
 	w       proto.Writer
+	timeout time.Duration
 	closing bool
 	async   bool
 	nextTag int64
@@ -31,36 +37,49 @@ type Client struct {
 }
 
 // NewClient returns a new Client over rwc. Login must be called.
-func NewClient(rwc io.ReadWriteCloser) (*Client, error) {
+func NewClient(conn net.Conn, timeout time.Duration) (*Client, error) {
 	return &Client{
-		rwc: rwc,
-		r:   proto.NewReader(rwc),
-		w:   proto.NewWriter(rwc),
+		rwc: conn,
+		r:   proto.NewReader(conn, timeout),
+		w:   proto.NewWriter(conn, timeout),
+		timeout: timeout,
 	}, nil
 }
 
 // Dial connects and logs in to a RouterOS device.
 func Dial(address, username, password string) (*Client, error) {
-	conn, err := net.Dial("tcp", address)
+	return DialWithTimeout(address, username, password, DefaultTimeout)
+}
+
+// DialWithTimeout connects and logs in to a RouterOS device.
+func DialWithTimeout(address, username, password string, timeout time.Duration) (*Client, error) {
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := dialer.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
-	return newClientAndLogin(conn, username, password)
+	return newClientAndLogin(conn, username, password, timeout)
 }
 
 // DialTLS connects and logs in to a RouterOS device using TLS.
 func DialTLS(address, username, password string, tlsConfig *tls.Config) (*Client, error) {
-	conn, err := tls.Dial("tcp", address, tlsConfig)
+	return DialTLSWithTimeout(address, username, password, tlsConfig, DefaultTimeout)
+}
+
+// DialTLSWithTimeout connects and logs in to a RouterOS device using TLS.
+func DialTLSWithTimeout(address, username, password string, tlsConfig *tls.Config, timeout time.Duration) (*Client, error) {
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := tls.DialWithDialer(&dialer, "tcp", address, tlsConfig)
 	if err != nil {
 		return nil, err
 	}
-	return newClientAndLogin(conn, username, password)
+	return newClientAndLogin(conn, username, password, timeout)
 }
 
-func newClientAndLogin(rwc io.ReadWriteCloser, username, password string) (*Client, error) {
-	c, err := NewClient(rwc)
+func newClientAndLogin(conn net.Conn, username, password string, timeout time.Duration) (*Client, error) {
+	c, err := NewClient(conn, timeout)
 	if err != nil {
-		rwc.Close()
+		conn.Close()
 		return nil, err
 	}
 	err = c.Login(username, password)
