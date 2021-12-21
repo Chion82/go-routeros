@@ -19,6 +19,7 @@ import (
 
 const (
 	DefaultTimeout = 10 * time.Second
+	DefaultDialTimeout = 10 * time.Second
 )
 
 // Client is a RouterOS API client.
@@ -53,7 +54,7 @@ func Dial(address, username, password string) (*Client, error) {
 
 // DialWithTimeout connects and logs in to a RouterOS device.
 func DialWithTimeout(address, username, password string, timeout time.Duration) (*Client, error) {
-	dialer := net.Dialer{Timeout: timeout}
+	dialer := net.Dialer{Timeout: DefaultDialTimeout}
 	conn, err := dialer.Dial("tcp", address)
 	if err != nil {
 		return nil, err
@@ -68,7 +69,7 @@ func DialTLS(address, username, password string, tlsConfig *tls.Config) (*Client
 
 // DialTLSWithTimeout connects and logs in to a RouterOS device using TLS.
 func DialTLSWithTimeout(address, username, password string, tlsConfig *tls.Config, timeout time.Duration) (*Client, error) {
-	dialer := net.Dialer{Timeout: timeout}
+	dialer := net.Dialer{Timeout: DefaultDialTimeout}
 	conn, err := tls.DialWithDialer(&dialer, "tcp", address, tlsConfig)
 	if err != nil {
 		return nil, err
