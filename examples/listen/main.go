@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-routeros/routeros"
+	"github.com/Chion82/go-routeros"
 )
 
 var (
